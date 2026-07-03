@@ -1,6 +1,8 @@
 mod config;
+mod excel;
 mod logger;
 use config::Config;
+use excel::ExcelData;
 use logger::Logger;
 
 fn main() {
@@ -8,4 +10,5 @@ fn main() {
     let _logger = Logger::new(&config.logging);
     println!("{:#?}", config);
     tracing::info!("This works!");
+    ExcelData::from_sheet(&config.excel)
 }

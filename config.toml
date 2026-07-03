@@ -1,3 +1,3 @@
 [excel]
-input_dir = "./Excel Files"
+input_dir = "./Excel Files/test.xlsx"
 output_dir = "./Excel Files/out"
