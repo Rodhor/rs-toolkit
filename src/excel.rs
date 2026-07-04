@@ -1,13 +1,52 @@
-use std::{collections::HashMap, fs::File, io::BufReader};
-
 use crate::config::{ExcelConfig, NamingConvention};
+use calamine::{Reader, Xlsx, XlsxError, open_workbook};
+use std::fmt::Write;
+use std::{
+    fs::{self, File},
+    io::BufReader,
+    path::PathBuf,
+};
 
-use calamine::{Reader, Xlsx, open_workbook};
+pub struct LoadResult {
+    pub data: Vec<ExcelData>,
+    pub errors: Vec<PathBuf>,
+}
+
+impl LoadResult {
+    pub fn report(&self) -> String {
+        let mut report = String::new();
+
+        writeln!(report, "{}", "=".repeat(50)).unwrap();
+        writeln!(report, "Processing report").unwrap();
+        writeln!(report, "{}", "=".repeat(50)).unwrap();
+        writeln!(report, "Files processed: {}", self.data.len()).unwrap();
+        writeln!(report, "Files failed:    {}", self.errors.len()).unwrap();
+        report.push('\n');
+
+        for excel_data in &self.data {
+            report.push_str(&excel_data.report());
+        }
+
+        if !self.errors.is_empty() {
+            writeln!(report, "{}", "-".repeat(50)).unwrap();
+            writeln!(report, "Failed paths:").unwrap();
+            for path in &self.errors {
+                writeln!(report, "  - {:?}", path).unwrap();
+            }
+        }
+
+        report
+    }
+}
+
 pub struct ExcelData {
+    pub source: PathBuf,
     sheets: Vec<String>,
     data: Vec<SheetData>,
+    pub sheet_errors: Vec<(String, XlsxError)>,
 }
 struct SheetData {
+    name: String,
     rows: Vec<RowData>,
 }
 struct RowData {
@@ -15,41 +54,203 @@ struct RowData {
 }
 
 impl ExcelData {
-    pub fn from_sheet(cfg: &ExcelConfig) {
+    pub fn new(cfg: &ExcelConfig) -> LoadResult {
+        let mut result = LoadResult {
+            data: Vec::new(),
+            errors: Vec::new(),
+        };
+
+        if cfg.input.is_file() {
+            tracing::info!(
+                "file detected - initalising file processing: {:?}",
+                cfg.input
+            );
+            match Self::from_file(&cfg.input) {
+                Some(d) => result.data.push(d),
+                None => {
+                    tracing::error!("failed to process file: {:?}", cfg.input);
+                    result.errors.push(cfg.input.clone());
+                }
+            }
+        } else if cfg.input.is_dir() {
+            tracing::info!(
+                "directory detected - initalising directory processing: {:?}",
+                cfg.input
+            );
+            match Self::from_dir(&cfg.input) {
+                Some(dir_result) => {
+                    result.data = dir_result.data;
+                    result.errors = dir_result.errors;
+                }
+                None => {
+                    tracing::error!("failed to read directory: {:?}", cfg.input);
+                    result.errors.push(cfg.input.clone());
+                }
+            }
+        } else {
+            panic!(
+                "input path is neither a file nor a directory: {:?}",
+                cfg.input
+            );
+        }
+
+        result
+    }
+
+    pub fn from_file(input: &PathBuf) -> Option<ExcelData> {
+        if input.extension().is_none_or(|ext| ext != "xlsx") {
+            tracing::error!("a none excelfile was passed int: {:?}", input);
+            return None;
+        }
         // Open workbook returning the workbook object
-        let mut workbook: Xlsx<_> =
-            open_workbook(cfg.input_dir.clone()).expect("failed to open excel file");
+        tracing::info!("opening workbook: {:?}", input);
+        let mut workbook: Xlsx<_> = match open_workbook(input) {
+            Ok(wb) => wb,
+            Err(e) => {
+                tracing::error!("failed to open excel file {:?}: {:?}", input, e);
+                return None;
+            }
+        };
 
         // Get a list of sheetnames in the workbook
         let sheet_names: Vec<String> = workbook.sheet_names();
+        tracing::info!("sheets found: {:?}", sheet_names);
 
-        // Depending on the defined namingconvention, call the needed function returning a worksheet data object.
-        match cfg.naming {
-            NamingConvention::Index => create_index_map(sheet_names, &mut workbook),
-            NamingConvention::SheetName => create_index_map(sheet_names, &mut workbook),
-        };
+        Some(Self::build_data(input.clone(), sheet_names, &mut workbook))
     }
 
-    pub fn from_multiple_sheets(cfg: &ExcelConfig) {}
-}
-fn create_index_map(
-    names: Vec<String>,
-    workbook: &mut Xlsx<BufReader<File>>,
-) -> HashMap<usize, Vec<Vec<String>>> {
-    let mut total_data = HashMap::new();
-    for (i, name) in names.iter().enumerate() {
-        let mut sheet_data = Vec::new();
-        if let Ok(range) = workbook.worksheet_range(name) {
-            for row in range.rows() {
-                let mut row_data = Vec::new();
-                for col in row.iter() {
-                    row_data.push(col.to_string());
-                    println!("This is the extracted data: {}", col)
+    pub fn from_dir(input: &PathBuf) -> Option<LoadResult> {
+        // Try to laod the directory, failing fast if not possible
+        let entries = match fs::read_dir(input) {
+            Ok(entries) => entries,
+            Err(e) => {
+                tracing::error!("failed to read directory {:?}: {:?}", input, e);
+                return None;
+            }
+        };
+
+        // Reuse LoadResult to keep track of failed files
+        let mut result = LoadResult {
+            data: Vec::new(),
+            errors: Vec::new(),
+        };
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(e) => {
+                    tracing::warn!("failed to read directory entry: {:?}", e);
+                    continue;
                 }
-                sheet_data.push(row_data)
+            };
+            tracing::info!("processing: {:?}", entry);
+            // Skip non excel files
+            if entry.path().extension().is_none_or(|ext| ext != "xlsx") {
+                tracing::info!(
+                    "skipping entry, as this is not an excelfile: {:?}",
+                    entry.path()
+                );
+                continue;
+            }
+            // Open workbook returning the workbook object
+            let mut workbook: Xlsx<_> = match open_workbook(entry.path()) {
+                Ok(wb) => wb,
+                Err(e) => {
+                    tracing::error!("failed to open excel file {:?}: {:?}", entry.path(), e);
+                    result.errors.push(entry.path());
+                    continue;
+                }
+            };
+
+            // Get a list of sheetnames in the workbook
+            let sheet_names: Vec<String> = workbook.sheet_names();
+            tracing::info!("Sheets found: {:?}", sheet_names);
+
+            result
+                .data
+                .push(Self::build_data(entry.path(), sheet_names, &mut workbook));
+        }
+
+        Some(result)
+    }
+
+    fn build_data(
+        source: PathBuf,
+        names: Vec<String>,
+        workbook: &mut Xlsx<BufReader<File>>,
+    ) -> ExcelData {
+        let mut data = ExcelData {
+            source,
+            sheets: Vec::new(),
+            data: Vec::new(),
+            sheet_errors: Vec::new(),
+        };
+
+        for name in &names {
+            // Prepare sheet data
+            let mut sheet_data = SheetData {
+                name: name.clone(),
+                rows: Vec::new(),
+            };
+            // Loop through the sheet - row by row. (Skip if the sheet range is not found.)
+            match workbook.worksheet_range(name) {
+                Ok(range) => {
+                    for row in range.rows() {
+                        // Prepare row data
+                        let mut row_data = RowData {
+                            col_data: Vec::new(),
+                        };
+                        // Loop through the row and extract the cell data.
+                        for col in row.iter() {
+                            row_data.col_data.push(col.to_string());
+                        }
+                        // Push the row data to the sheet data.
+                        sheet_data.rows.push(row_data)
+                    }
+                    data.sheets.push(name.clone());
+                    data.data.push(sheet_data);
+                }
+                Err(e) => {
+                    tracing::warn!("skipping sheet {:?}: {:?}", name, e);
+                    data.sheet_errors.push((name.clone(), e));
+                }
             }
         }
-        total_data.insert(i, sheet_data);
+        data
     }
-    total_data
+
+    pub fn to_csv(output_dir: &PathBuf, naming: &NamingConvention) -> Option<PathBuf> {
+        None
+    }
+    pub fn report(&self) -> String {
+        let mut report = String::new();
+
+        writeln!(report, "{}", "-".repeat(50)).unwrap();
+        writeln!(report, "File: {:?}", self.source).unwrap();
+        writeln!(report, "  Sheets processed: {}", self.sheets.len()).unwrap();
+        writeln!(report, "  Sheets failed:    {}", self.sheet_errors.len()).unwrap();
+
+        if !self.sheets.is_empty() {
+            report.push('\n');
+            for (name, sheet) in self.sheets.iter().zip(self.data.iter()) {
+                writeln!(
+                    report,
+                    "    {:<40} {:>6} rows",
+                    format!("{:?}", name),
+                    sheet.rows.len()
+                )
+                .unwrap();
+            }
+        }
+
+        if !self.sheet_errors.is_empty() {
+            report.push('\n');
+            writeln!(report, "  Errors:").unwrap();
+            for (name, err) in &self.sheet_errors {
+                writeln!(report, "    {:<40} {:?}", format!("{:?}", name), err).unwrap();
+            }
+        }
+
+        report
+    }
 }

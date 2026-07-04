@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Deserialize)]
 pub enum NamingConvention {
@@ -26,8 +26,8 @@ pub enum LogFormat {
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct ExcelConfig {
-    pub input_dir: String,
-    pub output_dir: String,
+    pub input: PathBuf,
+    pub output_dir: PathBuf,
     pub exclude_sheets: Vec<String>,
     pub naming: NamingConvention,
 }
@@ -35,8 +35,8 @@ pub struct ExcelConfig {
 impl Default for ExcelConfig {
     fn default() -> Self {
         Self {
-            input_dir: ".".to_string(),
-            output_dir: "./out".to_string(),
+            input: PathBuf::from("./"),
+            output_dir: PathBuf::from("./out"),
             exclude_sheets: vec!["Legende".to_string()],
             naming: NamingConvention::SheetName,
         }
