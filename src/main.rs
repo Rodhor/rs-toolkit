@@ -10,5 +10,6 @@ fn main() {
     let _logger = Logger::new(&config.logging);
     println!("{:#?}", config);
     tracing::info!("This works!");
-    ExcelData::from_sheet(&config.excel)
+    let data = ExcelData::new(&config.excel);
+    println!("{}", data.report())
 }
