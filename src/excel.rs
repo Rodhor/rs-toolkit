@@ -1,5 +1,6 @@
 use crate::config::{ExcelConfig, NamingConvention};
 use calamine::{Reader, Xlsx, XlsxError, open_workbook};
+use csv::Writer;
 use std::fmt::Write;
 use std::{
     fs::{self, File},
@@ -41,7 +42,6 @@ impl LoadResult {
 
 pub struct ExcelData {
     pub source: PathBuf,
-    sheets: Vec<String>,
     data: Vec<SheetData>,
     pub sheet_errors: Vec<(String, XlsxError)>,
 }
@@ -65,7 +65,7 @@ impl ExcelData {
                 "file detected - initalising file processing: {:?}",
                 cfg.input
             );
-            match Self::from_file(&cfg.input) {
+            match Self::from_file(&cfg.input, &cfg.exclude_sheets) {
                 Some(d) => result.data.push(d),
                 None => {
                     tracing::error!("failed to process file: {:?}", cfg.input);
@@ -77,7 +77,7 @@ impl ExcelData {
                 "directory detected - initalising directory processing: {:?}",
                 cfg.input
             );
-            match Self::from_dir(&cfg.input) {
+            match Self::from_dir(&cfg.input, &cfg.exclude_sheets) {
                 Some(dir_result) => {
                     result.data = dir_result.data;
                     result.errors = dir_result.errors;
@@ -97,7 +97,7 @@ impl ExcelData {
         result
     }
 
-    pub fn from_file(input: &PathBuf) -> Option<ExcelData> {
+    pub fn from_file(input: &PathBuf, skip: &Vec<String>) -> Option<ExcelData> {
         if input.extension().is_none_or(|ext| ext != "xlsx") {
             tracing::error!("a none excelfile was passed int: {:?}", input);
             return None;
@@ -116,10 +116,15 @@ impl ExcelData {
         let sheet_names: Vec<String> = workbook.sheet_names();
         tracing::info!("sheets found: {:?}", sheet_names);
 
-        Some(Self::build_data(input.clone(), sheet_names, &mut workbook))
+        Some(Self::build_data(
+            input.clone(),
+            sheet_names,
+            skip,
+            &mut workbook,
+        ))
     }
 
-    pub fn from_dir(input: &PathBuf) -> Option<LoadResult> {
+    pub fn from_dir(input: &PathBuf, skip: &Vec<String>) -> Option<LoadResult> {
         // Try to laod the directory, failing fast if not possible
         let entries = match fs::read_dir(input) {
             Ok(entries) => entries,
@@ -166,9 +171,12 @@ impl ExcelData {
             let sheet_names: Vec<String> = workbook.sheet_names();
             tracing::info!("Sheets found: {:?}", sheet_names);
 
-            result
-                .data
-                .push(Self::build_data(entry.path(), sheet_names, &mut workbook));
+            result.data.push(Self::build_data(
+                entry.path(),
+                sheet_names,
+                skip,
+                &mut workbook,
+            ));
         }
 
         Some(result)
@@ -177,16 +185,19 @@ impl ExcelData {
     fn build_data(
         source: PathBuf,
         names: Vec<String>,
+        skip: &Vec<String>,
         workbook: &mut Xlsx<BufReader<File>>,
     ) -> ExcelData {
         let mut data = ExcelData {
             source,
-            sheets: Vec::new(),
             data: Vec::new(),
             sheet_errors: Vec::new(),
         };
 
         for name in &names {
+            if skip.contains(&name.to_string()) {
+                continue;
+            }
             // Prepare sheet data
             let mut sheet_data = SheetData {
                 name: name.clone(),
@@ -207,7 +218,6 @@ impl ExcelData {
                         // Push the row data to the sheet data.
                         sheet_data.rows.push(row_data)
                     }
-                    data.sheets.push(name.clone());
                     data.data.push(sheet_data);
                 }
                 Err(e) => {
@@ -219,24 +229,64 @@ impl ExcelData {
         data
     }
 
-    pub fn to_csv(output_dir: &PathBuf, naming: &NamingConvention) -> Option<PathBuf> {
-        None
+    pub fn to_csv(
+        &self,
+        output_dir: &PathBuf,
+        naming: &NamingConvention,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        for (idx, sheet) in self.data.iter().enumerate() {
+            if sheet.rows.len() < 3 {
+                tracing::warn!(
+                    "sheet {:?} skipped because it only contains 2 rows",
+                    &sheet.name
+                );
+                continue;
+            } else {
+                tracing::info!("creating csv from {:?}", &sheet.name)
+            }
+
+            let file_path = match naming {
+                NamingConvention::Index => output_dir.join(format!("{}.csv", idx)),
+                NamingConvention::SheetName => output_dir.join(format!("{}.csv", sheet.name)),
+            };
+            tracing::info!("saving sheet to path: {:?}", &file_path);
+            let file = File::create(&file_path)?;
+
+            let mut wtr = Writer::from_writer(file);
+            for (counter, row) in sheet.rows.iter().enumerate() {
+                match wtr.write_record(&row.col_data) {
+                    Ok(_) => {
+                        tracing::debug!("row {} successfully written.", counter)
+                    }
+                    Err(e) => {
+                        tracing::warn!("error writing row {}: {:?}", counter, e)
+                    }
+                }
+            }
+            match wtr.flush() {
+                Ok(_) => {}
+                Err(e) => {
+                    tracing::warn!("Error flushing writer: {:?}", e)
+                }
+            }
+        }
+        Ok(())
     }
     pub fn report(&self) -> String {
         let mut report = String::new();
 
         writeln!(report, "{}", "-".repeat(50)).unwrap();
         writeln!(report, "File: {:?}", self.source).unwrap();
-        writeln!(report, "  Sheets processed: {}", self.sheets.len()).unwrap();
+        writeln!(report, "  Sheets processed: {}", self.data.len()).unwrap();
         writeln!(report, "  Sheets failed:    {}", self.sheet_errors.len()).unwrap();
 
-        if !self.sheets.is_empty() {
+        if !self.data.is_empty() {
             report.push('\n');
-            for (name, sheet) in self.sheets.iter().zip(self.data.iter()) {
+            for sheet in &self.data {
                 writeln!(
                     report,
                     "    {:<40} {:>6} rows",
-                    format!("{:?}", name),
+                    format!("{:?}", sheet.name),
                     sheet.rows.len()
                 )
                 .unwrap();
