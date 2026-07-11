@@ -2,6 +2,7 @@ use crate::config::{ExcelConfig, NamingConvention};
 use calamine::{Reader, Xlsx, XlsxError, open_workbook};
 use csv::Writer;
 use std::fmt::Write;
+use std::path::Path;
 use std::{
     fs::{self, File},
     io::BufReader,
@@ -54,7 +55,7 @@ struct RowData {
 }
 
 impl ExcelData {
-    pub fn new(cfg: &ExcelConfig) -> LoadResult {
+    pub fn load(cfg: &ExcelConfig) -> LoadResult {
         let mut result = LoadResult {
             data: Vec::new(),
             errors: Vec::new(),
@@ -97,7 +98,7 @@ impl ExcelData {
         result
     }
 
-    pub fn from_file(input: &PathBuf, skip: &Vec<String>) -> Option<ExcelData> {
+    pub fn from_file(input: &PathBuf, skip: &[String]) -> Option<ExcelData> {
         if input.extension().is_none_or(|ext| ext != "xlsx") {
             tracing::error!("a none excelfile was passed int: {:?}", input);
             return None;
@@ -124,7 +125,7 @@ impl ExcelData {
         ))
     }
 
-    pub fn from_dir(input: &PathBuf, skip: &Vec<String>) -> Option<LoadResult> {
+    pub fn from_dir(input: &PathBuf, skip: &[String]) -> Option<LoadResult> {
         // Try to laod the directory, failing fast if not possible
         let entries = match fs::read_dir(input) {
             Ok(entries) => entries,
@@ -185,7 +186,7 @@ impl ExcelData {
     fn build_data(
         source: PathBuf,
         names: Vec<String>,
-        skip: &Vec<String>,
+        skip: &[String],
         workbook: &mut Xlsx<BufReader<File>>,
     ) -> ExcelData {
         let mut data = ExcelData {
@@ -231,14 +232,16 @@ impl ExcelData {
 
     pub fn to_csv(
         &self,
-        output_dir: &PathBuf,
+        output_dir: &Path,
         naming: &NamingConvention,
+        min_rows: usize,
     ) -> Result<(), Box<dyn std::error::Error>> {
         for (idx, sheet) in self.data.iter().enumerate() {
-            if sheet.rows.len() < 3 {
+            if sheet.rows.len() < min_rows {
                 tracing::warn!(
-                    "sheet {:?} skipped because it only contains 2 rows",
-                    &sheet.name
+                    "sheet {:?} skipped because it only contains {} rows",
+                    &sheet.name,
+                    sheet.rows.len()
                 );
                 continue;
             } else {

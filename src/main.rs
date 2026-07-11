@@ -12,11 +12,11 @@ fn main() {
     // Initialise logging
     let _logger = Logger::new(&config.logging);
     // Load excelfiles into data. Data might contain several excelfiles
-    let data = ExcelData::new(&config.excel);
+    let data = ExcelData::load(&config.excel);
     // Print a report from the loaded excelfiles - giving the user some information about the success/failures of loading
     println!("{}", data.report());
 
-    // Loop through all exfiles and export to csv
+    // Loop through all excelfiles and export to csv
     let mut export_failed = false;
     for excel_file in &data.data {
         tracing::info!("exporting file: {:?}", excel_file.source);
@@ -29,12 +29,18 @@ fn main() {
                 export_failed = true;
                 continue;
             }
-            match excel_file.to_csv(&file_output_dir, &config.excel.naming) {
-                Ok(_) => tracing::info!(
-                    "export to csv successful for {:?}. Exported to: {:?}",
-                    excel_file.source,
-                    file_output_dir
-                ),
+            match excel_file.to_csv(
+                &file_output_dir,
+                &config.excel.naming,
+                config.excel.min_rows,
+            ) {
+                Ok(_) => {
+                    tracing::info!(
+                        "export to csv successful for {:?}. Exported to: {:?}",
+                        excel_file.source,
+                        file_output_dir,
+                    );
+                }
                 Err(e) => {
                     tracing::error!("failed to export {:?} to csv: {:?}", excel_file.source, e);
                     export_failed = true;
