@@ -1,0 +1,40 @@
+# excel-splitter configuration
+#To reset back to defaults, simply delete this file. The default configuration will be recreated on next run.
+
+[excel]
+# Path to a single .xlsx file, or a diretory containing one or more .xlsx files.
+input = "./"
+
+# Where processed output (CSV) will be written.
+output_dir = "./out"
+
+# Sheet names to exclude from processing - written as a list of strings.
+exclude_sheets = ["Legende"]
+
+# How sheets are name in the output. Options:
+# - "SheetName": use the sheet's name as-is
+# - "Index": use the sheet's index (1-based)
+naming = "SheetName"
+
+# Minimum number of rows a sheet must have to be processed.
+# Sheets with fewer rows will be skipped.
+min_rows = 3
+
+[logging]
+# Logging level. Options:
+# - "Debug"
+# - "Info"
+# - "Warn"
+# - "Error"
+level = "Info"
+
+# Log file path (optional). Leave unset or remove the line entirely to skip writing logs to a file.
+# If you do want to write to a file provide either the folder or filepath.
+# path = "./logs/"
+
+# Log format. Options:
+# - StdOut: plain text to stdout only
+# - Json: structured JSON, one object per line
+# - Txt: plain text
+format = "StdOut"
+

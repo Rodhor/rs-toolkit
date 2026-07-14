@@ -1,0 +1,21 @@
+[package]
+name = "excel-splitter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "excel-splitter"
+path = "src/main.rs"
+
+
+[dependencies]
+common.workspace = true
+calamine.workspace = true
+csv.workspace = true
+serde.workspace = true
+toml.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
