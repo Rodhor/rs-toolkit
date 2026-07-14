@@ -1,14 +1,13 @@
 mod config;
 mod excel;
-mod logger;
 
+use common::Logger;
 use config::Config;
 use excel::ExcelData;
-use logger::Logger;
 
 fn main() {
     // Load in config
-    let config = Config::new();
+    let config: Config = common::config::load();
     // Initialise logging
     let _logger = Logger::new(&config.logging);
     // Load excelfiles into data. Data might contain several excelfiles
