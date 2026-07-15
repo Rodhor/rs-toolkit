@@ -1,4 +1,5 @@
 use super::*;
+use common::ToolConfig;
 use std::fs;
 use tempfile::NamedTempFile;
 

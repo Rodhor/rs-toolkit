@@ -1,0 +1,18 @@
+[package]
+name = "__TOOL_NAME__"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "__TOOL_NAME__"
+path = "src/main.rs"
+
+[dependencies]
+common.workspace = true
+serde.workspace = true
+toml.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
