@@ -1,4 +1,4 @@
-use crate::config::{LogFormat, LogLevel, LoggingConfig};
+use crate::config::{LogFormat, LogLevel, LogTarget, LoggingConfig};
 use tracing::Level;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{
@@ -17,8 +17,12 @@ pub struct Logger {
 impl Logger {
     pub fn new(cfg: &LoggingConfig) -> Self {
         let level = to_tracing_level(&cfg.level);
-        let (writer, guard, is_file) = match &cfg.path {
-            Some(path) => {
+        let filter = tracing_subscriber::filter::LevelFilter::from_level(level);
+
+        let (writer, guard, is_file) = match &cfg.target {
+            LogTarget::Stdout => (BoxMakeWriter::new(std::io::stdout), None, false),
+            LogTarget::Stderr => (BoxMakeWriter::new(std::io::stderr), None, false),
+            LogTarget::Path(path) => {
                 let path = {
                     let p = Path::new(path);
                     let looks_like_dir =
@@ -34,10 +38,7 @@ impl Logger {
                 let (nb, guard) = tracing_appender::non_blocking(file);
                 (BoxMakeWriter::new(nb), Some(guard), true)
             }
-            None => (BoxMakeWriter::new(std::io::stderr), None, false),
         };
-
-        let filter = tracing_subscriber::filter::LevelFilter::from_level(level);
 
         match cfg.format {
             LogFormat::Json => {
@@ -49,10 +50,6 @@ impl Logger {
                     .with_writer(writer)
                     .with_ansi(!is_file)
                     .with_filter(filter);
-                Registry::default().with(layer).init();
-            }
-            LogFormat::StdOut => {
-                let layer = fmt::layer().with_filter(filter);
                 Registry::default().with(layer).init();
             }
         }

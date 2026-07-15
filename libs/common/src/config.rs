@@ -15,14 +15,23 @@ pub enum LogLevel {
 pub enum LogFormat {
     Txt,
     Json,
-    StdOut,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[serde(untagged)]
+pub enum LogTarget {
+    #[serde(alias = "stdout", alias = "STDOUT")]
+    Stdout,
+    #[serde(alias = "stderr", alias = "STDERR")]
+    Stderr,
+    Path(String),
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct LoggingConfig {
     pub level: LogLevel,
-    pub path: Option<String>,
+    pub target: LogTarget,
     pub format: LogFormat,
 }
 
@@ -30,8 +39,8 @@ impl Default for LoggingConfig {
     fn default() -> Self {
         Self {
             level: LogLevel::Info,
-            path: None,
-            format: LogFormat::StdOut,
+            target: LogTarget::Stdout,
+            format: LogFormat::Txt,
         }
     }
 }
@@ -42,22 +51,17 @@ impl TemplateSection for LoggingConfig {
     }
 
     fn template_body() -> &'static str {
-        r#"# Logging level. Options:
-# - "Debug"
-# - "Info"
-# - "Warn"
-# - "Error"
+        r#"# Logging level. Options: "Debug", "Info", "Warn", "Error"
 level = "Info"
 
-# Log file path (optional). Leave unset or remove the line entirely to skip writing logs to a file.
-# If you do want to write to a file provide either the folder or filepath.
-# path = "./logs/"
+# Log target. Options:
+# - "Stdout"
+# - "Stderr"
+# - Any file path string (e.g., "./logs/", "app.log")
+target = "Stdout"
 
-# Log format. Options:
-# - StdOut: plain text to stdout only
-# - Json: structured JSON, one object per line
-# - Txt: plain text
-format = "StdOut"
+# Log format. Options: "Txt", "Json"
+format = "Txt"
 "#
     }
 }
@@ -140,18 +144,18 @@ macro_rules! tool_config {
         #[serde(default)]
         pub struct Config {
             $( pub $field: $section, )*
-            pub logging: $crate::LoggingConfig,   // ← always added, so no tool can forget it
+            pub logging: $crate::LoggingConfig,
         }
 
         impl $crate::ToolConfig for Config {
             fn tool_name() -> &'static str {
-                env!("CARGO_PKG_NAME")            // ← expands in the TOOL crate → the tool's name
+                env!("CARGO_PKG_NAME")
             }
 
             fn sections() -> ::std::vec::Vec<$crate::Section> {
                 ::std::vec![
                     $( $crate::section::<$section>(), )*
-                    $crate::section::<$crate::LoggingConfig>(),   // ← logging last, automatically
+                    $crate::section::<$crate::LoggingConfig>(),
                 ]
             }
         }
