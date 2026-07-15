@@ -5,15 +5,21 @@ use std::path::Path;
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub enum LogLevel {
+    #[serde(alias = "debug", alias = "DEBUG")]
     Debug,
+    #[serde(alias = "info", alias = "INFO")]
     Info,
+    #[serde(alias = "warn", alias = "WARN")]
     Warn,
+    #[serde(alias = "error", alias = "ERROR")]
     Error,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub enum LogFormat {
+    #[serde(alias = "txt", alias = "TXT")]
     Txt,
+    #[serde(alias = "json", alias = "JSON")]
     Json,
 }
 
