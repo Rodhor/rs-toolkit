@@ -4,13 +4,8 @@ use common::Logger;
 use config::Config;
 
 fn main() {
-    // Reads ./config.toml (a toolkit-wide convention). On first run there's no
-    // file, so this writes an annotated default and returns Config::default().
     let config: Config = common::config::load();
 
-    // Must stay bound to `_logger` and live to the end of main — it holds the
-    // guard that flushes the background log writer. A bare `_` drops it now and
-    // your log file ends up silently empty.
     let _logger = Logger::new(&config.logging);
 
     tracing::info!("{} starting", env!("CARGO_PKG_NAME"));

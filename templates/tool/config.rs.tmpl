@@ -1,8 +1,6 @@
 use common::TemplateSection;
 use serde::Deserialize;
 
-// Replace this with your tool's real settings. It's here so a new tool starts
-// from a WORKING example of the TemplateSection pattern, not a blank file.
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -22,8 +20,6 @@ impl TemplateSection for Settings {
         "settings"
     }
 
-    // Keep these values in sync with Default above — the test file is what
-    // catches you when they drift.
     fn template_body() -> &'static str {
         r#"# An example setting. Replace with your tool's real config.
 example = "change me"
@@ -31,9 +27,6 @@ example = "change me"
     }
 }
 
-// Generates `Config` (with a `logging` section appended) and its `ToolConfig`
-// impl. tool_name comes from this crate's package name automatically.
-// List your sections here in the order they should appear in config.toml.
 common::tool_config! {
     settings: Settings,
 }
