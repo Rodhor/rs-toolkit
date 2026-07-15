@@ -1,11 +1,8 @@
 use super::*;
-use common::ToolConfig;   // for Config::render_default_template()
+use common::ToolConfig;
 use std::fs;
 use tempfile::NamedTempFile;
 
-// Every config section needs a test like this. The template_body() string and
-// the Default impl are two hand-kept copies of the same values — this is the
-// only thing that catches them drifting apart.
 #[test]
 fn default_template_matches_default_config() {
     let file = NamedTempFile::new().expect("failed to create temp file");
