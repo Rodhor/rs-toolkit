@@ -92,7 +92,7 @@ pub trait ToolConfig: DeserializeOwned + Default {
         for s in Self::sections() {
             out.push_str(&format!("[{}]\n", s.name));
             out.push_str(s.body);
-            out.push_str("\n");
+            out.push('\n');
         }
         out
     }
@@ -131,6 +131,33 @@ pub fn load_from<C: ToolConfig>(path: impl AsRef<Path>) -> C {
         }
     }
 }
+
+// Macro for defining a tool's configuration struct and implementing ToolConfig
+#[macro_export]
+macro_rules! tool_config {
+    ( $( $field:ident : $section:ty ),* $(,)? ) => {
+        #[derive(Debug, ::serde::Deserialize, Default)]
+        #[serde(default)]
+        pub struct Config {
+            $( pub $field: $section, )*
+            pub logging: $crate::LoggingConfig,   // ← always added, so no tool can forget it
+        }
+
+        impl $crate::ToolConfig for Config {
+            fn tool_name() -> &'static str {
+                env!("CARGO_PKG_NAME")            // ← expands in the TOOL crate → the tool's name
+            }
+
+            fn sections() -> ::std::vec::Vec<$crate::Section> {
+                ::std::vec![
+                    $( $crate::section::<$section>(), )*
+                    $crate::section::<$crate::LoggingConfig>(),   // ← logging last, automatically
+                ]
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 #[path = "config_test.rs"]
 mod tests;

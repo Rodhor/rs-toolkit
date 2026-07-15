@@ -1,4 +1,4 @@
-use common::{LoggingConfig, Section, TemplateSection, ToolConfig, section};
+use common::TemplateSection;
 use serde::Deserialize;
 use std::path::PathBuf;
 
@@ -56,21 +56,8 @@ min_rows = 3
     }
 }
 
-#[derive(Debug, Deserialize, Default)]
-#[serde(default)]
-pub struct Config {
-    pub excel: ExcelConfig,
-    pub logging: LoggingConfig,
-}
-
-impl ToolConfig for Config {
-    fn tool_name() -> &'static str {
-        "excel-splitter"
-    }
-
-    fn sections() -> Vec<Section> {
-        vec![section::<ExcelConfig>(), section::<LoggingConfig>()]
-    }
+common::tool_config! {
+    excel: ExcelConfig
 }
 
 #[cfg(test)]
