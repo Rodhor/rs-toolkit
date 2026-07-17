@@ -20,8 +20,14 @@ impl Logger {
         let filter = tracing_subscriber::filter::LevelFilter::from_level(level);
 
         let (writer, guard, is_file) = match &cfg.target {
-            LogTarget::Stdout => (BoxMakeWriter::new(std::io::stdout), None, false),
-            LogTarget::Stderr => (BoxMakeWriter::new(std::io::stderr), None, false),
+            LogTarget::Stdout => {
+                let (nb, guard) = tracing_appender::non_blocking(std::io::stdout());
+                (BoxMakeWriter::new(nb), Some(guard), false)
+            }
+            LogTarget::Stderr => {
+                let (nb, guard) = tracing_appender::non_blocking(std::io::stderr());
+                (BoxMakeWriter::new(nb), Some(guard), false)
+            }
             LogTarget::Path(path) => {
                 let path = {
                     let p = Path::new(path);
