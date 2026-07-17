@@ -1,5 +1,6 @@
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
+
 use std::fs;
 use std::path::Path;
 
@@ -24,11 +25,10 @@ pub enum LogFormat {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
-#[serde(untagged)]
 pub enum LogTarget {
-    #[serde(alias = "stdout", alias = "STDOUT")]
+    #[serde(rename = "stdout", alias = "stdout", alias = "STDOUT")]
     Stdout,
-    #[serde(alias = "stderr", alias = "STDERR")]
+    #[serde(rename = "stderr", alias = "stderr", alias = "STDERR")]
     Stderr,
     Path(String),
 }
