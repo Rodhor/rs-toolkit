@@ -26,9 +26,9 @@ pub enum LogFormat {
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
 pub enum LogTarget {
-    #[serde(rename = "stdout", alias = "stdout", alias = "STDOUT")]
+    #[serde(alias = "Stdout", alias = "stdout", alias = "STDOUT")]
     Stdout,
-    #[serde(rename = "stderr", alias = "stderr", alias = "STDERR")]
+    #[serde(alias = "Stderr", alias = "stderr", alias = "STDERR")]
     Stderr,
     Path(String),
 }
