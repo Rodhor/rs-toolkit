@@ -1,8 +1,10 @@
 use common::TemplateSection;
+use fuzzy_derive::FuzzyFromStr;
 use serde::Deserialize;
+use serde_with::DeserializeFromStr;
 use std::path::PathBuf;
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, PartialEq, FuzzyFromStr, DeserializeFromStr)]
 pub enum NamingConvention {
     SheetName,
     Index,
