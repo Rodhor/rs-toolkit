@@ -1,36 +1,49 @@
+use fuzzy_derive::FuzzyFromStr;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde_with::DeserializeFromStr;
 
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, DeserializeFromStr, PartialEq, FuzzyFromStr)]
 pub enum LogLevel {
-    #[serde(alias = "debug", alias = "DEBUG")]
     Debug,
-    #[serde(alias = "info", alias = "INFO")]
     Info,
-    #[serde(alias = "warn", alias = "WARN")]
     Warn,
-    #[serde(alias = "error", alias = "ERROR")]
     Error,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, PartialEq, FuzzyFromStr, DeserializeFromStr)]
 pub enum LogFormat {
-    #[serde(alias = "txt", alias = "TXT")]
     Txt,
-    #[serde(alias = "json", alias = "JSON")]
     Json,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone)]
+#[derive(Debug, DeserializeFromStr, PartialEq, Clone)]
 pub enum LogTarget {
-    #[serde(alias = "Stdout", alias = "stdout", alias = "STDOUT")]
     Stdout,
-    #[serde(alias = "Stderr", alias = "stderr", alias = "STDERR")]
     Stderr,
     Path(String),
+}
+
+impl std::str::FromStr for LogTarget {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(
+            match s
+                .trim()
+                .to_lowercase()
+                .replace(['-', ' ', '_'], "")
+                .as_str()
+            {
+                "stdout" => LogTarget::Stdout,
+                "stderr" => LogTarget::Stderr,
+                _ => LogTarget::Path(s.trim().to_string()),
+            },
+        )
+    }
 }
 
 #[derive(Debug, Deserialize)]

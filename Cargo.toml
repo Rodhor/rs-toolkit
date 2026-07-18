@@ -18,11 +18,14 @@ repository = "https://github.com/rodhor/rs-toolkit"
 [workspace.dependencies]
 # Internal libs
 common = {path = "libs/common"}
+fuzzy_derive = {path = "libs/fuzzy_derive"}
+
 
 # External libs
 calamine = { version = "0.35.0", features = ["chrono"] }
 csv = "1.4.0"
 serde = { version = "1.0.228", features = ["derive"] }
+serde_with = "3.21"
 toml = "1.1.2"
 tracing = "0.1.44"
 tracing-appender = "0.2.5"

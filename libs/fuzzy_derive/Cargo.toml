@@ -1,23 +1,22 @@
 [package]
-name = "excel-splitter"
+name = "fuzzy_derive"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[[bin]]
-name = "excel-splitter"
-path = "src/main.rs"
-
+[lib]
+proc-macro = true
 
 [dependencies]
-common.workspace = true
-fuzzy_derive.workspace = true
-calamine.workspace = true
-csv.workspace = true
 serde.workspace = true
 serde_with.workspace = true
 toml.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+syn = { version = "2.0", features = ["full"] }
+quote = { version = "1.0" }
+
 
 [dev-dependencies]
 tempfile.workspace = true
