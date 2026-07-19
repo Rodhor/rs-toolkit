@@ -2,8 +2,36 @@
 #To reset back to defaults, simply delete this file. The default configuration will be recreated on next run.
 
 [settings]
-# An example setting. Replace with your tool's real config.
-example = "change me"
+#The Path to the directory containing files to be renamed.
+path = "./testfiles"
+
+# Overwrite original files:
+# if true, the original files will be overwritten with the renamed ones.
+# if false, original files will be moved into a timestamped directory.
+overwrite_original = false
+
+# Sort field for renaming files. Options:
+# - alphabetical_asc: Sort by alphabetical order, ascending
+# - alphabetical_desc: Sort by alphabetical order, descending
+# - modified_time_newest: Sort by modified time, newest first
+# - modified_time_oldest: Sort by modified time, oldest first
+# - created_time_newest: Sort by created time, newest first
+# - created_time_oldest: Sort by created time, oldest first
+# - accessed_time_newest: Sort by accessed time, newest first
+# - accessed_time_oldest: Sort by accessed time, oldest first
+sort_field = "alphabetical_asc"
+
+# Include pattern - which filetypes to include, with the use of Wildcard - i.e. "*.sql"
+include_pattern = "*.sql"
+
+# Exclude pattern - which filetypes to exclude, with the use for wildcarts - i.e. "00*"
+exclude_pattern = "0*"
+
+# Gap between file numbers.
+gab = 20
+
+# Width of file number padding - i.e. 00001_file
+width = 5
 
 [logging]
 # Logging level. Options: "Debug", "Info", "Warn", "Error"
@@ -17,4 +45,3 @@ target = "Stdout"
 
 # Log format. Options: "Txt", "Json"
 format = "Txt"
-

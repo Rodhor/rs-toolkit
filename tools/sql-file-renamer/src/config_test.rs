@@ -9,8 +9,9 @@ fn default_settings_have_expected_values() {
 
     assert_eq!(settings.path, PathBuf::from("./"));
     assert!(!settings.overwrite_original);
-    assert_eq!(settings.output_path, PathBuf::from("./out"));
     assert_eq!(settings.sort_field, SortField::AlphabeticalAsc);
+    assert_eq!(settings.include_pattern, "");
+    assert_eq!(settings.exclude_pattern, "");
     assert_eq!(settings.gab, 20);
     assert_eq!(settings.width, 5);
 }
@@ -77,6 +78,8 @@ fn missing_fields_fall_back_to_defaults() {
     assert_eq!(settings.gab, 20);
     assert_eq!(settings.sort_field, SortField::AlphabeticalAsc);
     assert_eq!(settings.path, PathBuf::from("./"));
+    assert_eq!(settings.include_pattern, "");
+    assert_eq!(settings.exclude_pattern, "");
 }
 
 #[test]
@@ -93,18 +96,20 @@ fn empty_snippet_yields_full_defaults() {
 fn explicit_values_override_defaults() {
     let settings = parse_settings(
         r#"path = "/data/in"
-output_path = "/data/out"
 overwrite_original = true
 sort_field = "ModifiedTimeNewest"
+include_pattern = "*.sql"
+exclude_pattern = "00*"
 gab = 10
 width = 4
 "#,
     );
 
     assert_eq!(settings.path, PathBuf::from("/data/in"));
-    assert_eq!(settings.output_path, PathBuf::from("/data/out"));
     assert!(settings.overwrite_original);
     assert_eq!(settings.sort_field, SortField::ModifiedTimeNewest);
+    assert_eq!(settings.include_pattern, "*.sql");
+    assert_eq!(settings.exclude_pattern, "00*");
     assert_eq!(settings.gab, 10);
     assert_eq!(settings.width, 4);
 }

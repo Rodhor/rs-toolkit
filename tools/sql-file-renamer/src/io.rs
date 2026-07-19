@@ -1,13 +1,35 @@
-use glob::glob;
-use std::{fs, path::PathBuf, time::SystemTime};
+use chrono::Local;
+use glob::{Pattern, glob};
+use std::{fs, time::SystemTime};
 
-use crate::{config::SortField, models::FileInfo};
+use crate::{
+    config::{Settings, SortField},
+    models::FileInfo,
+};
 
-pub fn list_files(path: PathBuf, file_pattern: &str, sorting: SortField) -> Vec<FileInfo> {
-    let full_pattern = path.join(file_pattern);
-    let pattern_str = full_pattern.to_string_lossy();
+pub fn list_files(settings: &Settings) -> Vec<FileInfo> {
+    let exclude = if settings.exclude_pattern.is_empty() {
+        None
+    } else {
+        match Pattern::new(&settings.exclude_pattern) {
+            Ok(p) => Some(p),
+            Err(e) => {
+                tracing::error!(
+                    "Invalid exclude pattern '{}': {}",
+                    settings.exclude_pattern,
+                    e
+                );
+                None
+            }
+        }
+    };
 
-    match glob(&pattern_str) {
+    let pattern = settings.path.join(match settings.include_pattern.as_str() {
+        "" => "*",
+        s => s,
+    });
+
+    match glob(&pattern.to_string_lossy()) {
         Ok(entries) => {
             let mut files = Vec::new();
             for entry in entries {
@@ -15,6 +37,16 @@ pub fn list_files(path: PathBuf, file_pattern: &str, sorting: SortField) -> Vec<
                     continue;
                 };
                 if file_path.is_file() {
+                    let file_name = file_path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or_default();
+                    if let Some(ref pattern) = exclude
+                        && pattern.matches(file_name)
+                    {
+                        tracing::info!("Excluded file {} skipped", file_path.display());
+                        continue;
+                    }
                     let Ok(meta) = fs::metadata(&file_path) else {
                         continue;
                     };
@@ -33,7 +65,7 @@ pub fn list_files(path: PathBuf, file_pattern: &str, sorting: SortField) -> Vec<
                 }
             }
 
-            match sorting {
+            match settings.sort_field {
                 SortField::AlphabeticalAsc => {
                     files.sort_by(|a, b| natord::compare(&a.original_name, &b.original_name));
                 }
@@ -70,9 +102,19 @@ pub fn list_files(path: PathBuf, file_pattern: &str, sorting: SortField) -> Vec<
     }
 }
 
-pub fn rename_files(files: Vec<FileInfo>) {
-    let width = 9;
-    let gab = 50;
+pub fn process_files(files: Vec<FileInfo>, settings: &Settings) {
+    let archive_dir = if !settings.overwrite_original {
+        let timestamp = Local::now().format("%Y%m%d_%H%M").to_string();
+        let dir = settings.path.join(&timestamp);
+        if let Err(e) = fs::create_dir_all(&dir) {
+            tracing::error!("Failed to create archive directory: {}", e);
+            return;
+        }
+        tracing::info!("Created archive directory at: {}", dir.display());
+        Some(dir)
+    } else {
+        None
+    };
     let mut current_value = 1;
     for file in files {
         let current_name = &file.original_name;
@@ -80,13 +122,29 @@ pub fn rename_files(files: Vec<FileInfo>) {
             let new_name = format!(
                 "{num:0w$}_{name}",
                 num = current_value,
-                w = width,
+                w = settings.width,
                 name = current_name
             );
 
-            let mut new_filepath = file.path.clone();
-            new_filepath.set_file_name(new_name);
+            if let Some(ref dir) = archive_dir {
+                let archive_filepath = dir.join(current_name);
+                if let Err(e) = fs::copy(&file.path, &archive_filepath) {
+                    tracing::error!(
+                        "Failed to copy file {} to archive: {}",
+                        file.path.display(),
+                        e
+                    );
+                    continue;
+                } else {
+                    tracing::info!(
+                        "Copied file {} to archive: {}",
+                        file.path.display(),
+                        archive_filepath.display()
+                    );
+                }
+            }
 
+            let new_filepath = file.path.with_file_name(&new_name);
             match fs::rename(&file.path, &new_filepath) {
                 Ok(_) => tracing::info!(
                     "Renamed file {} to {}",
@@ -95,7 +153,7 @@ pub fn rename_files(files: Vec<FileInfo>) {
                 ),
                 Err(err) => tracing::error!("Error renaming file {}: {}", file.path.display(), err),
             };
-            current_value += gab;
+            current_value += settings.gab;
         }
     }
 }
