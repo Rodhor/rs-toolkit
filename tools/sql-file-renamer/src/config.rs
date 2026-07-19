@@ -22,8 +22,9 @@ pub enum SortField {
 pub struct Settings {
     pub path: PathBuf,
     pub overwrite_original: bool,
-    pub output_path: PathBuf,
     pub sort_field: SortField,
+    pub include_pattern: String,
+    pub exclude_pattern: String,
     pub gab: usize,
     pub width: usize,
 }
@@ -33,8 +34,9 @@ impl Default for Settings {
         Self {
             path: PathBuf::from("./"),
             overwrite_original: false,
-            output_path: PathBuf::from("./out"),
             sort_field: SortField::AlphabeticalAsc,
+            include_pattern: String::from(""),
+            exclude_pattern: String::from(""),
             gab: 20,
             width: 5,
         }
@@ -50,11 +52,10 @@ impl TemplateSection for Settings {
         r#"#The Path to the directory containing files to be renamed.
 path = "./"
 
-# Overwrite original files - if true, the original files will be overwritten with the renamed ones.
+# Overwrite original files:
+# if true, the original files will be overwritten with the renamed ones.
+# if false, original files will be moved into a timestamped directory.
 overwrite_original = false
-
-# The output path for renamed files - defaults to /out to avoid overwriting the input path.
-output_path = "./out"
 
 # Sort field for renaming files. Options:
 # - alphabetical_asc: Sort by alphabetical order, ascending
@@ -66,6 +67,12 @@ output_path = "./out"
 # - accessed_time_newest: Sort by accessed time, newest first
 # - accessed_time_oldest: Sort by accessed time, oldest first
 sort_field = "alphabetical_asc"
+
+# Include pattern - which filetypes to include, with the use of Wildcard - i.e. "*.sql"
+include_pattern = ""
+
+# Exclude pattern - which filetypes to exclude, with the use for wildcarts - i.e. "00*"
+exclude_pattern = ""
 
 # Gap between file numbers.
 gab = 20
