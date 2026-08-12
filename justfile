@@ -46,6 +46,40 @@ release name:
     cargo build --release -p {{name}}
 
 # ---------------------------------------------------------------------------
+# Distribution — cross-compiled release builds, zipped per platform
+# ---------------------------------------------------------------------------
+
+# Release-build one tool for every platform and zip each:  just dist excel-handler
+dist name:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # platform label -> target triple; the label becomes the zip suffix.
+    # mac needs the Apple SDK (osxcross or cargo-zigbuild) — enable once installed:
+    #     rustup target add aarch64-apple-darwin
+    #     [mac]=aarch64-apple-darwin
+    declare -A targets=(
+        [linux]=x86_64-unknown-linux-gnu
+        [windows]=x86_64-pc-windows-gnu
+    )
+    mkdir -p out/dist
+    for platform in "${!targets[@]}"; do
+        triple="${targets[$platform]}"
+        cargo build --release -p "{{name}}" --target "$triple"
+        bin="$CARGO_TARGET_DIR/$triple/release/{{name}}"
+        [[ "$platform" == windows ]] && bin="$bin.exe"
+        zip -j -q "out/dist/{{name}}-$platform.zip" "$bin"
+        echo "✓ out/dist/{{name}}-$platform.zip"
+    done
+
+# Build + zip every tool in tools/ for every platform
+dist-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for dir in tools/*/; do
+        just dist "$(basename "$dir")"
+    done
+
+# ---------------------------------------------------------------------------
 # Individual checks (composed by `check` above, runnable on their own)
 # ---------------------------------------------------------------------------
 
