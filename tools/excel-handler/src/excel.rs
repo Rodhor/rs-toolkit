@@ -1,5 +1,5 @@
 use crate::config::{CleanPreset, CleaningConfig, ExcelConfig, NamingConvention};
-use calamine::{Reader, Xlsx, XlsxError, open_workbook};
+use calamine::{open_workbook, Reader, Xlsx, XlsxError};
 use csv::Writer;
 use regex::Regex;
 use std::fmt::Write;
@@ -282,9 +282,7 @@ impl ExcelData {
                                 .iter()
                                 .map(|col| {
                                     let mut val = col.to_string();
-                                    if let Some(c) = cleaner
-                                        && c.clean_cell(&mut val)
-                                    {
+                                    if cleaner.is_some_and(|c| c.clean_cell(&mut val)) {
                                         sheet_data.cleaned_cells += 1;
                                     }
                                     val
