@@ -1,14 +1,14 @@
 # rs-toolkit
 
-A Rust workspace for small, configurable file-processing tools. Shared configuration and logging helpers live in ``libs/common`; the workspace also includes a derive macro for parsing enum values from configuration.
+A Rust workspace for small, configurable file-processing tools. Shared configuration and logging helpers live in `libs/common`; the workspace also includes a derive macro for parsing enum values from configuration.
 
 ## Tools
 
-### ``excel-handler`
+### `excel-handler`
 
 Reads one `.xlsx` workbook or a directory of workbooks, optionally skips selected sheets, cleans cell contents, and exports eligible sheets as CSV files. Cleaning can be configured with presets, literal strings, and regular expressions.
 
-### ``sql-file-renamer`
+### `sql-file-renamer`
 
 Selects files in a directory using include/exclude patterns, sorts them by name or file timestamps, then prefixes sequential numbers with configurable spacing and padding. By default, it copies originals to a timestamped directory before renaming; this can be changed in its settings.
 
@@ -36,4 +36,4 @@ A starter crate can be generated with `just new-tool <name>`. See the workspace 
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT (see the workspace license field in `Cargo.toml`).
